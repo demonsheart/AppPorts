@@ -7,7 +7,21 @@
 一款专为 macOS 设计的应用程序迁移与链接工具。  
 轻松将庞大的应用程序迁移至外部存储，同时保持系统无感运行。
 
-[English](README.md) | [简体中文](README_CN.md)
+[English](README.md)｜[简体中文](README_CN.md)｜[DeepWiki](https://deepwiki.com/wzh4869/AppPorts)
+
+<div style="display:flex; justify-content:center; align-items:center; gap:10px; flex-wrap:wrap;">
+  <a href="https://www.producthunt.com/products/appports/launches/appports?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-appports" target="_blank" rel="noopener noreferrer">
+    <img alt="AppPorts - An application migration designed specifically for macOS. | Product Hunt"
+         width="250" height="54"
+         src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1078207&theme=light&t=1772851420450">
+  </a>
+
+  <a href="https://hellogithub.com/repository/wzh4869/AppPorts" target="_blank">
+    <img src="https://abroad.hellogithub.com/v1/widgets/recommend.svg?rid=9bc7259839c740faa2246ee5f10bc786&claim_uid=SjNchy8nMfGgUlx&theme=neutral"
+         alt="Featured｜HelloGitHub"
+         width="250" height="54">
+  </a>
+</div> 
 
 </div>
 
@@ -127,16 +141,17 @@ xattr -rd com.apple.quarantine /Applications/AppPorts.app
     *   📁 **项目归档**：大文件放在便宜的存储上，按需访问
     *   ☁️ **云存储**：把 Google Drive、Dropbox 或任何 rclone 支持的服务挂载成本地文件夹
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/image?repos=wzh4869/AppPorts&type=date&legend=top-left)](https://www.star-history.com/?repos=wzh4869%2FAppPorts&type=date&legend=top-left)
+
 ## 📄 许可证
 
 本项目基于 [MIT License](LICENSE) 开源。
 
----
-
+<br>
 <div align="center">
 
-Created by **Wzh4869**
-
-[个人网站](https://www.shimoko.com) • [GitHub](https://github.com/wzh4869)
+[个人网站](https://www.shimoko.com) • [GitHub](https://github.com/wzh4869/AppPorts)
 
 </div>
