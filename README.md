@@ -7,11 +7,26 @@
 An application migration and linking tool designed specifically for macOS.
 Easily migrate large applications to external storage while maintaining seamless system functionality.
 
-[简体中文](README_CN.md)
+[简体中文](README_CN.md)｜[DeepWiki](https://deepwiki.com/wzh4869/AppPorts)
 
-</div>
+<div style="display:flex; justify-content:center; align-items:center; gap:10px; flex-wrap:wrap;">
+  <a href="https://www.producthunt.com/products/appports/launches/appports?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-appports" target="_blank" rel="noopener noreferrer">
+    <img alt="AppPorts - An application migration designed specifically for macOS. | Product Hunt"
+         width="250" height="54"
+         src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1078207&theme=light&t=1772851420450">
+  </a>
 
----
+  <a href="https://hellogithub.com/repository/wzh4869/AppPorts" target="_blank">
+    <img src="https://abroad.hellogithub.com/v1/widgets/recommend.svg?rid=9bc7259839c740faa2246ee5f10bc786&claim_uid=SjNchy8nMfGgUlx&theme=neutral"
+         alt="Featured｜HelloGitHub"
+         width="250" height="54">
+  </a>
+</div> 
+
+
+
+
+---      
 
 ## ✨ Introduction
 
@@ -126,14 +141,15 @@ If you find translation errors or have suggestions for new features, please let 
     *   📁 Project Archives — Keep large files on cheaper storage, access them on-demand
     *   ☁️ Cloud Storage — Mount Google Drive, Dropbox, or any rclone-supported service as a local folder
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/image?repos=wzh4869/AppPorts&type=date&legend=top-left)](https://www.star-history.com/?repos=wzh4869%2FAppPorts&type=date&legend=top-left)
 ## 📄 License
 
 This project is open-source under the [MIT License](LICENSE).
 
 <br>
 <div align="center">
-
-Created by **Wzh4869**
 
 [Personal Website](https://www.shimoko.com) • [GitHub](https://github.com/wzh4869/AppPorts)
 
