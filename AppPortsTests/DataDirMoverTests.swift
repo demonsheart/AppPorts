@@ -214,9 +214,6 @@ final class DataDirMoverTests: XCTestCase {
         file: StaticString = #filePath,
         line: UInt = #line
     ) throws {
-        let values = try localURL.resourceValues(forKeys: [.isSymbolicLinkKey])
-        XCTAssertEqual(values.isSymbolicLink, true, file: file, line: line)
-
         let destination = try fileManager.destinationOfSymbolicLink(atPath: localURL.path)
         let resolvedDestination = URL(
             fileURLWithPath: destination,
@@ -236,9 +233,13 @@ final class DataDirMoverTests: XCTestCase {
         file: StaticString = #filePath,
         line: UInt = #line
     ) throws {
-        let values = try directoryURL.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+        let values = try directoryURL.resourceValues(forKeys: [.isDirectoryKey])
         XCTAssertEqual(values.isDirectory, true, file: file, line: line)
-        XCTAssertNotEqual(values.isSymbolicLink, true, file: file, line: line)
+        XCTAssertThrowsError(
+            try fileManager.destinationOfSymbolicLink(atPath: directoryURL.path),
+            file: file,
+            line: line
+        )
     }
 
     private func markerURL(for directoryURL: URL) -> URL {

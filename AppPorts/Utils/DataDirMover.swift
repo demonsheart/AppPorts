@@ -116,8 +116,7 @@ actor DataDirMover {
 
         // 2. 冲突检测
         if fileManager.fileExists(atPath: destPath.path) {
-            let values = try? destPath.resourceValues(forKeys: [.isSymbolicLinkKey, .isDirectoryKey])
-            if values?.isSymbolicLink == true {
+            if isSymbolicLink(at: destPath) {
                 // 已有符号链接 → 删除后继续
                 try fileManager.removeItem(at: destPath)
                 AppLogger.shared.log("已删除目标位置旧符号链接")
@@ -280,8 +279,7 @@ actor DataDirMover {
         AppLogger.shared.logPathState("数据目录还原前-本地入口[\(operationID)]", url: localPath)
 
         // 确认是符号链接
-        guard let values = try? localPath.resourceValues(forKeys: [.isSymbolicLinkKey]),
-              values.isSymbolicLink == true else {
+        guard isSymbolicLink(at: localPath) else {
             AppLogger.shared.logError(
                 "数据目录还原前检查失败：本地路径不是符号链接",
                 errorCode: "DATA-RESTORE-NOT-A-SYMLINK",
@@ -434,8 +432,7 @@ actor DataDirMover {
         }
 
         // 如果本地路径已存在符号链接，先删除
-        if let values = try? localPath.resourceValues(forKeys: [.isSymbolicLinkKey]),
-           values.isSymbolicLink == true {
+        if isSymbolicLink(at: localPath) {
             try fileManager.removeItem(at: localPath)
         }
 
@@ -712,6 +709,10 @@ actor DataDirMover {
         }
 
         try fileManager.createSymbolicLink(at: localPath, withDestinationURL: externalPath)
+    }
+
+    private func isSymbolicLink(at url: URL) -> Bool {
+        (try? fileManager.destinationOfSymbolicLink(atPath: url.path)) != nil
     }
 
     private func writeManagedLinkMetadata(sourcePath: URL, destinationPath: URL, type: DataDirType) throws {
