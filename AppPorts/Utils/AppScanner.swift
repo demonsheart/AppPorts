@@ -156,10 +156,8 @@ actor AppScanner {
                 newApps.append(AppItem(name: appName, path: itemURL, status: status, isSystemApp: isSystem, isRunning: isRunning, isAppStoreApp: isAppStore, isIOSApp: isIOS))
             }
             // 处理包含 .app 的文件夹（如 Microsoft Office、Adobe Creative Cloud 等套件）
-            else if let resourceValues = try? itemURL.resourceValues(forKeys: [.isDirectoryKey]),
-                    resourceValues.isDirectory == true {
-                let folderContents = (try? fileManager.contentsOfDirectory(at: itemURL, includingPropertiesForKeys: nil, options: .skipsHiddenFiles)) ?? []
-                let appsInFolder = folderContents.filter { $0.pathExtension == "app" }
+            else {
+                let appsInFolder = appBundlesInsideFolderPortal(at: itemURL)
                 
                 if !appsInFolder.isEmpty {
                     let folderName = itemURL.lastPathComponent
@@ -227,10 +225,28 @@ actor AppScanner {
 
     private func detectLocalFolderStatus(at folderURL: URL) -> String {
         if let linkDest = resolveSymlinkDestination(of: folderURL) {
-            return isCrossVolumeLink(fromPortalAt: folderURL, to: linkDest) ? "已链接" : "本地"
+            return linkDest.standardizedFileURL == folderURL.standardizedFileURL ? "本地" : "已链接"
         }
 
         return "本地"
+    }
+
+    private func appBundlesInsideFolderPortal(at folderURL: URL) -> [URL] {
+        let inspectURL: URL
+
+        if let resourceValues = try? folderURL.resourceValues(forKeys: [.isDirectoryKey]),
+           resourceValues.isDirectory == true {
+            inspectURL = folderURL
+        } else if let linkDestination = resolveSymlinkDestination(of: folderURL),
+                  let targetValues = try? linkDestination.resourceValues(forKeys: [.isDirectoryKey]),
+                  targetValues.isDirectory == true {
+            inspectURL = linkDestination
+        } else {
+            return []
+        }
+
+        let folderContents = (try? FileManager.default.contentsOfDirectory(at: inspectURL, includingPropertiesForKeys: nil, options: .skipsHiddenFiles)) ?? []
+        return folderContents.filter { $0.pathExtension == "app" }
     }
 
     /// 为体积计算解析真实目标。
@@ -411,7 +427,7 @@ actor AppScanner {
             level: "TRACE"
         )
         let fileManager = FileManager.default
-        var newApps: [AppItem] = []
+        var discoveredApps: [String: AppItem] = [:]
         let keys: [URLResourceKey] = [.isSymbolicLinkKey, .isDirectoryKey]
         let items = (try? fileManager.contentsOfDirectory(at: dir, includingPropertiesForKeys: keys, options: .skipsHiddenFiles)) ?? []
         
@@ -426,7 +442,10 @@ actor AppScanner {
                    isLocalApp(localAppURL, linkedTo: itemURL) {
                     status = "已链接"
                 }
-                newApps.append(AppItem(name: appName, path: itemURL, status: status, isSystemApp: false, isRunning: false))
+                mergeExternalApp(
+                    AppItem(name: appName, path: itemURL, status: status, isSystemApp: false, isRunning: false),
+                    into: &discoveredApps
+                )
             }
             // 2. 处理包含 .app 的文件夹（如 Microsoft Office、Adobe Creative Cloud 等套件）
             else if let resourceValues = try? itemURL.resourceValues(forKeys: [.isDirectoryKey]),
@@ -457,19 +476,75 @@ actor AppScanner {
                         status = linkedCount == 0 ? "未链接" : "部分链接"
                     }
                     
-                    newApps.append(AppItem(
-                        name: folderName,
-                        path: itemURL,
-                        status: status,
-                        isSystemApp: false,
-                        isRunning: false,
-                        isFolder: true,
-                        appCount: appCount
-                    ))
+                    mergeExternalApp(
+                        AppItem(
+                            name: folderName,
+                            path: itemURL,
+                            status: status,
+                            isSystemApp: false,
+                            isRunning: false,
+                            isFolder: true,
+                            appCount: appCount
+                        ),
+                        into: &discoveredApps
+                    )
                 }
             }
         }
-        let sortedApps = sortApps(newApps)
+
+        // 3. 从本地入口反向补全已经链接到当前外部根目录中的项目。
+        // 这样即使外部目标位于更深一层的子目录中，右侧外部应用库仍然可以显示它。
+        let localItems = (try? fileManager.contentsOfDirectory(at: localAppsDir, includingPropertiesForKeys: keys, options: .skipsHiddenFiles)) ?? []
+        for localItemURL in localItems {
+            if localItemURL.pathExtension == "app" {
+                guard let externalTargetURL = externalTargetForLocalApp(at: localItemURL),
+                      isDescendantOrSame(externalTargetURL, under: dir),
+                      fileManager.fileExists(atPath: externalTargetURL.path) else {
+                    continue
+                }
+
+                let (isAppStore, isIOS) = detectAppStoreAndIOSApp(at: externalTargetURL)
+                mergeExternalApp(
+                    AppItem(
+                        name: externalTargetURL.lastPathComponent,
+                        path: externalTargetURL,
+                        status: "已链接",
+                        isSystemApp: false,
+                        isRunning: false,
+                        isAppStoreApp: isAppStore,
+                        isIOSApp: isIOS
+                    ),
+                    into: &discoveredApps
+                )
+                continue
+            }
+
+            guard let externalTargetURL = resolveSymlinkDestination(of: localItemURL),
+                  isDescendantOrSame(externalTargetURL, under: dir),
+                  let resourceValues = try? externalTargetURL.resourceValues(forKeys: [.isDirectoryKey]),
+                  resourceValues.isDirectory == true else {
+                continue
+            }
+
+            let folderContents = (try? fileManager.contentsOfDirectory(at: externalTargetURL, includingPropertiesForKeys: nil, options: .skipsHiddenFiles)) ?? []
+            let appsInFolder = folderContents.filter { $0.pathExtension == "app" }
+            guard !appsInFolder.isEmpty else { continue }
+
+            mergeExternalApp(
+                AppItem(
+                    name: externalTargetURL.lastPathComponent,
+                    path: externalTargetURL,
+                    status: "已链接",
+                    isSystemApp: false,
+                    isRunning: false,
+                    isFolder: true,
+                    appCount: appsInFolder.count
+                ),
+                into: &discoveredApps
+            )
+        }
+
+        let sortedApps = sortApps(Array(discoveredApps.values))
         AppLogger.shared.logContext(
             "AppScanner 完成外部应用扫描",
             details: [
@@ -480,6 +555,75 @@ actor AppScanner {
             level: "TRACE"
         )
         return sortedApps
+    }
+
+    private func externalTargetForLocalApp(at localAppURL: URL) -> URL? {
+        if let linkDestination = resolveSymlinkDestination(of: localAppURL) {
+            return linkDestination
+        }
+
+        let contentsURL = localAppURL.appendingPathComponent("Contents")
+        if let contentsDestination = resolveSymlinkDestination(of: contentsURL) {
+            return enclosingAppBundleURL(for: contentsDestination)
+        }
+
+        let macOSURL = contentsURL.appendingPathComponent("MacOS")
+        if let macOSDestination = resolveSymlinkDestination(of: macOSURL) {
+            return enclosingAppBundleURL(for: macOSDestination)
+        }
+
+        let resourcesURL = contentsURL.appendingPathComponent("Resources")
+        if let resourcesDestination = resolveSymlinkDestination(of: resourcesURL) {
+            return enclosingAppBundleURL(for: resourcesDestination)
+        }
+
+        return nil
+    }
+
+    private func isDescendantOrSame(_ url: URL, under root: URL) -> Bool {
+        let normalizedURL = url.standardizedFileURL.path
+        let normalizedRoot = root.standardizedFileURL.path
+
+        if normalizedURL == normalizedRoot {
+            return true
+        }
+
+        return normalizedURL.hasPrefix(normalizedRoot + "/")
+    }
+
+    private func mergeExternalApp(_ item: AppItem, into itemsByPath: inout [String: AppItem]) {
+        let key = item.path.standardizedFileURL.path
+
+        guard var existing = itemsByPath[key] else {
+            itemsByPath[key] = item
+            return
+        }
+
+        if externalStatusPriority(item.status) > externalStatusPriority(existing.status) {
+            existing.status = item.status
+        }
+
+        if item.isFolder {
+            existing.isFolder = true
+            existing.appCount = max(existing.appCount, item.appCount)
+        }
+
+        existing.isAppStoreApp = existing.isAppStoreApp || item.isAppStoreApp
+        existing.isIOSApp = existing.isIOSApp || item.isIOSApp
+        itemsByPath[key] = existing
+    }
+
+    private func externalStatusPriority(_ status: String) -> Int {
+        switch status {
+        case "已链接":
+            return 3
+        case "部分链接":
+            return 2
+        case "未链接", "外部":
+            return 1
+        default:
+            return 0
+        }
     }
     
     /// 应用列表排序

@@ -63,6 +63,48 @@ final class AppScannerTests: XCTestCase {
         XCTAssertEqual(displayedSize, logicalSize)
     }
 
+    func testScanExternalAppsIncludesLinkedSuiteFolderNestedUnderSelectedRoot() async throws {
+        let workspace = try makeWorkspace()
+        defer { cleanupWorkspace(workspace.rootURL) }
+
+        let nestedSuitesURL = workspace.externalRootURL.appendingPathComponent("Suites")
+        let externalFolderURL = nestedSuitesURL.appendingPathComponent("Microsoft Office")
+        let localFolderURL = workspace.localAppsURL.appendingPathComponent("Microsoft Office")
+
+        try fileManager.createDirectory(at: nestedSuitesURL, withIntermediateDirectories: true)
+        try createAppBundle(at: externalFolderURL.appendingPathComponent("Word.app"), payloadSize: 1024)
+        try createAppBundle(at: externalFolderURL.appendingPathComponent("Excel.app"), payloadSize: 1024)
+        try fileManager.createSymbolicLink(at: localFolderURL, withDestinationURL: externalFolderURL)
+
+        let scanner = AppScanner()
+        let externalItems = await scanner.scanExternalApps(at: workspace.externalRootURL, localAppsDir: workspace.localAppsURL)
+
+        let linkedFolder = try XCTUnwrap(externalItems.first { $0.path.standardizedFileURL == externalFolderURL.standardizedFileURL })
+        XCTAssertEqual(linkedFolder.status, "已链接")
+        XCTAssertTrue(linkedFolder.isFolder)
+        XCTAssertEqual(linkedFolder.appCount, 2)
+    }
+
+    func testScanLocalAppsDetectsLinkedSuiteFolderSymlink() async throws {
+        let workspace = try makeWorkspace()
+        defer { cleanupWorkspace(workspace.rootURL) }
+
+        let externalFolderURL = workspace.externalRootURL.appendingPathComponent("Microsoft Office")
+        let localFolderURL = workspace.localAppsURL.appendingPathComponent("Microsoft Office")
+
+        try createAppBundle(at: externalFolderURL.appendingPathComponent("Word.app"), payloadSize: 1024)
+        try createAppBundle(at: externalFolderURL.appendingPathComponent("Excel.app"), payloadSize: 1024)
+        try fileManager.createSymbolicLink(at: localFolderURL, withDestinationURL: externalFolderURL)
+
+        let scanner = AppScanner()
+        let localItems = await scanner.scanLocalApps(at: workspace.localAppsURL, runningAppURLs: [])
+
+        let linkedFolder = try XCTUnwrap(localItems.first { $0.path.standardizedFileURL == localFolderURL.standardizedFileURL })
+        XCTAssertEqual(linkedFolder.status, "已链接")
+        XCTAssertTrue(linkedFolder.isFolder)
+        XCTAssertEqual(linkedFolder.appCount, 2)
+    }
+
     private func makeWorkspace() throws -> (rootURL: URL, localAppsURL: URL, externalRootURL: URL) {
         let rootURL = fileManager.temporaryDirectory.appendingPathComponent("AppScannerTests-\(UUID().uuidString)")
         let localAppsURL = rootURL.appendingPathComponent("Applications")
