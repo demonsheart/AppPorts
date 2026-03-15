@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		2A2693822F667A0E0044F015 /* icon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 2A2693812F667A0E0044F015 /* icon.icon */; };
+		2A2693832F667A0E0044F015 /* icon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 2A2693812F667A0E0044F015 /* icon.icon */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		B10000012F00100000000008 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -17,8 +22,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		2A6892EF2ECB9A7D0074F02E /* AppPorts.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AppPorts.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		B10000012F00100000000001 /* AppPortsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AppPortsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		2A2693812F667A0E0044F015 /* icon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = icon.icon; sourceTree = "<group>"; };
+		2A2693842F667A3D0044F015 /* AppPorts.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = AppPorts.app; path = /Users/wangheng/Documents/AppPorts/build/Debug/AppPorts.app; sourceTree = "<absolute>"; };
+		B10000012F00100000000001 /* AppPortsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = AppPortsTests.xctest; path = /Users/wangheng/Documents/AppPorts/build/Debug/AppPorts.app/Contents/PlugIns/AppPortsTests.xctest; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -57,17 +63,8 @@
 			children = (
 				2A6892F12ECB9A7D0074F02E /* AppPorts */,
 				B10000012F00100000000002 /* AppPortsTests */,
-				2A6892F02ECB9A7D0074F02E /* Products */,
+				2A2693812F667A0E0044F015 /* icon.icon */,
 			);
-			sourceTree = "<group>";
-		};
-		2A6892F02ECB9A7D0074F02E /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				2A6892EF2ECB9A7D0074F02E /* AppPorts.app */,
-				B10000012F00100000000001 /* AppPortsTests.xctest */,
-			);
-			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -92,7 +89,7 @@
 			packageProductDependencies = (
 			);
 			productName = TempApp;
-			productReference = 2A6892EF2ECB9A7D0074F02E /* AppPorts.app */;
+			productReference = 2A2693842F667A3D0044F015 /* AppPorts.app */;
 			productType = "com.apple.product-type.application";
 		};
 		B10000012F00100000000004 /* AppPortsTests */ = {
@@ -148,7 +145,7 @@
 			mainGroup = 2A6892E62ECB9A7D0074F02E;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = 2A6892F02ECB9A7D0074F02E /* Products */;
+			productRefGroup = 2A6892E62ECB9A7D0074F02E;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -163,6 +160,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2A2693822F667A0E0044F015 /* icon.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -170,6 +168,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2A2693832F667A0E0044F015 /* icon.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -332,7 +331,7 @@
 		2A6892FB2ECB9A7E0074F02E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = icon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_IDENTITY = "Apple Development";
@@ -371,7 +370,7 @@
 		2A6892FC2ECB9A7E0074F02E /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = icon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_IDENTITY = "Apple Development";

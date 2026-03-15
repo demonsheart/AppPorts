@@ -7,7 +7,15 @@
       "layers" : [
         {
           "blend-mode" : "normal",
-          "glass" : true,
+          "glass-specializations" : [
+            {
+              "value" : true
+            },
+            {
+              "appearance" : "light",
+              "value" : true
+            }
+          ],
           "hidden" : false,
           "image-name" : "icon_512x512@2x.png",
           "name" : "icon_512x512@2x",
