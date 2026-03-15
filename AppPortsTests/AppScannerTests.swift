@@ -110,6 +110,50 @@ final class AppScannerTests: XCTestCase {
         XCTAssertEqual(item.displayURL.standardizedFileURL, nestedAppURL.standardizedFileURL)
     }
 
+    func testLocalScanDetectsLinkedSingleAppContainerSymlink() async throws {
+        let workspace = try makeWorkspace()
+        defer { cleanupWorkspace(workspace.rootURL) }
+
+        let externalFolderURL = workspace.externalRootURL.appendingPathComponent("Adobe Lightroom")
+        let localFolderURL = workspace.localAppsURL.appendingPathComponent("Adobe Lightroom")
+        let nestedAppURL = externalFolderURL.appendingPathComponent("Adobe Lightroom.app")
+
+        try createAppBundle(at: nestedAppURL, payloadSize: 1024, bundleID: "com.example.lightroom")
+        try fileManager.createSymbolicLink(at: localFolderURL, withDestinationURL: externalFolderURL)
+
+        let items = await AppScanner().scanLocalApps(at: workspace.localAppsURL, runningAppURLs: Set<URL>())
+
+        XCTAssertEqual(items.count, 1)
+        let item = try XCTUnwrap(items.first)
+        XCTAssertEqual(item.containerKind, .singleAppContainer)
+        XCTAssertEqual(item.status, "已链接")
+        XCTAssertEqual(item.path.standardizedFileURL, localFolderURL.standardizedFileURL)
+        XCTAssertEqual(item.displayURL.standardizedFileURL, nestedAppURL.standardizedFileURL)
+    }
+
+    func testExternalScanIncludesLinkedSingleAppContainerNestedUnderSelectedRoot() async throws {
+        let workspace = try makeWorkspace()
+        defer { cleanupWorkspace(workspace.rootURL) }
+
+        let nestedSuitesURL = workspace.externalRootURL.appendingPathComponent("Suites")
+        let externalFolderURL = nestedSuitesURL.appendingPathComponent("Adobe Premiere Pro")
+        let localFolderURL = workspace.localAppsURL.appendingPathComponent("Adobe Premiere Pro")
+        let nestedAppURL = externalFolderURL.appendingPathComponent("Adobe Premiere Pro.app")
+
+        try fileManager.createDirectory(at: nestedSuitesURL, withIntermediateDirectories: true)
+        try createAppBundle(at: nestedAppURL, payloadSize: 1024, bundleID: "com.example.premiere")
+        try fileManager.createSymbolicLink(at: localFolderURL, withDestinationURL: externalFolderURL)
+
+        let items = await AppScanner().scanExternalApps(at: workspace.externalRootURL, localAppsDir: workspace.localAppsURL)
+
+        XCTAssertEqual(items.count, 1)
+        let item = try XCTUnwrap(items.first)
+        XCTAssertEqual(item.containerKind, .singleAppContainer)
+        XCTAssertEqual(item.status, "已链接")
+        XCTAssertEqual(item.path.standardizedFileURL, externalFolderURL.standardizedFileURL)
+        XCTAssertEqual(item.displayURL.standardizedFileURL, nestedAppURL.standardizedFileURL)
+    }
+
     private func makeWorkspace() throws -> (rootURL: URL, localAppsURL: URL, externalRootURL: URL) {
         let rootURL = fileManager.temporaryDirectory.appendingPathComponent("AppScannerTests-\(UUID().uuidString)")
         let localAppsURL = rootURL.appendingPathComponent("Applications")

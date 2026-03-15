@@ -172,20 +172,20 @@ actor AppScanner {
                 )
                 candidates.append(makeCandidate(for: app, bundleURL: itemURL, priority: 10))
             }
-            // 处理包含 .app 的文件夹（如 Microsoft Office、Adobe Creative Cloud 等套件）
-            else if let resourceValues = try? itemURL.resourceValues(forKeys: [.isDirectoryKey]),
-                    resourceValues.isDirectory == true {
-                let folderContents = (try? fileManager.contentsOfDirectory(at: itemURL, includingPropertiesForKeys: nil, options: .skipsHiddenFiles)) ?? []
-                let appsInFolder = folderContents.filter { $0.pathExtension == "app" }
-                
+            // 处理包含 .app 的文件夹（包括迁移后的“文件夹 symlink -> 外部单应用容器”）
+            else {
+                let appsInFolder = appBundlesInsideFolderPortal(at: itemURL)
+
                 if !appsInFolder.isEmpty {
                     let folderName = itemURL.lastPathComponent
                     let appCount = appsInFolder.count
                     let status = detectLocalFolderStatus(at: itemURL)
-                    
-                    // 检查文件夹内是否有正在运行的应用
-                    let hasRunning = appsInFolder.contains { runningAppURLs.contains($0) }
-                    
+
+                    let hasRunning = appsInFolder.contains { bundleURL in
+                        runningAppURLs.contains(bundleURL)
+                            || runningAppURLs.contains(itemURL.appendingPathComponent(bundleURL.lastPathComponent))
+                    }
+
                     if appCount == 1, let bundleURL = appsInFolder.first {
                         let (isAppStore, isIOS) = detectAppStoreAndIOSApp(at: bundleURL)
                         let app = AppItem(
@@ -335,6 +335,58 @@ actor AppScanner {
         return linkDestination == externalFolderURL.standardizedFileURL
     }
 
+    private func appBundlesInsideFolderPortal(at folderURL: URL) -> [URL] {
+        let inspectURL: URL
+
+        if let resourceValues = try? folderURL.resourceValues(forKeys: [.isDirectoryKey]),
+           resourceValues.isDirectory == true {
+            inspectURL = folderURL
+        } else if let linkDestination = resolveSymlinkDestination(of: folderURL),
+                  let targetValues = try? linkDestination.resourceValues(forKeys: [.isDirectoryKey]),
+                  targetValues.isDirectory == true {
+            inspectURL = linkDestination
+        } else {
+            return []
+        }
+
+        let folderContents = (try? FileManager.default.contentsOfDirectory(at: inspectURL, includingPropertiesForKeys: nil, options: .skipsHiddenFiles)) ?? []
+        return folderContents.filter { $0.pathExtension == "app" }
+    }
+
+    private func externalTargetForLocalApp(at localAppURL: URL) -> URL? {
+        if let linkDestination = resolveSymlinkDestination(of: localAppURL) {
+            return linkDestination
+        }
+
+        let contentsURL = localAppURL.appendingPathComponent("Contents")
+        if let contentsDestination = resolveSymlinkDestination(of: contentsURL) {
+            return enclosingAppBundleURL(for: contentsDestination)
+        }
+
+        let macOSURL = contentsURL.appendingPathComponent("MacOS")
+        if let macOSDestination = resolveSymlinkDestination(of: macOSURL) {
+            return enclosingAppBundleURL(for: macOSDestination)
+        }
+
+        let resourcesURL = contentsURL.appendingPathComponent("Resources")
+        if let resourcesDestination = resolveSymlinkDestination(of: resourcesURL) {
+            return enclosingAppBundleURL(for: resourcesDestination)
+        }
+
+        return nil
+    }
+
+    private func isDescendantOrSame(_ url: URL, under root: URL) -> Bool {
+        let normalizedURL = url.standardizedFileURL.path
+        let normalizedRoot = root.standardizedFileURL.path
+
+        if normalizedURL == normalizedRoot {
+            return true
+        }
+
+        return normalizedURL.hasPrefix(normalizedRoot + "/")
+    }
+
     private func enclosingAppBundleURL(for url: URL) -> URL {
         var candidate = url.standardizedFileURL
 
@@ -474,12 +526,9 @@ actor AppScanner {
                 candidates.append(makeCandidate(for: app, bundleURL: itemURL, priority: 10))
             }
             // 2. 处理包含 .app 的文件夹（如 Microsoft Office、Adobe Creative Cloud 等套件）
-            else if let resourceValues = try? itemURL.resourceValues(forKeys: [.isDirectoryKey]),
-                    resourceValues.isDirectory == true {
-                // 检查文件夹内是否包含 .app 文件
-                let folderContents = (try? fileManager.contentsOfDirectory(at: itemURL, includingPropertiesForKeys: nil, options: .skipsHiddenFiles)) ?? []
-                let appsInFolder = folderContents.filter { $0.pathExtension == "app" }
-                
+            else {
+                let appsInFolder = appBundlesInsideFolderPortal(at: itemURL)
+
                 if !appsInFolder.isEmpty {
                     let folderName = itemURL.lastPathComponent
                     let appCount = appsInFolder.count
@@ -544,6 +593,71 @@ actor AppScanner {
                         candidates.append(makeCandidate(for: app, bundleURL: itemURL, priority: 20))
                     }
                 }
+            }
+        }
+
+        let localItems = (try? fileManager.contentsOfDirectory(at: localAppsDir, includingPropertiesForKeys: keys, options: .skipsHiddenFiles)) ?? []
+        for localItemURL in localItems {
+            if localItemURL.pathExtension == "app" {
+                guard let externalTargetURL = externalTargetForLocalApp(at: localItemURL),
+                      isDescendantOrSame(externalTargetURL, under: dir),
+                      fileManager.fileExists(atPath: externalTargetURL.path) else {
+                    continue
+                }
+
+                let (isAppStore, isIOS) = detectAppStoreAndIOSApp(at: externalTargetURL)
+                let app = AppItem(
+                    name: externalTargetURL.lastPathComponent,
+                    path: externalTargetURL,
+                    bundleURL: externalTargetURL,
+                    status: "已链接",
+                    isSystemApp: false,
+                    isRunning: false,
+                    isAppStoreApp: isAppStore,
+                    isIOSApp: isIOS,
+                    containerKind: .standaloneApp
+                )
+                candidates.append(makeCandidate(for: app, bundleURL: externalTargetURL, priority: 40))
+                continue
+            }
+
+            guard let externalTargetURL = resolveSymlinkDestination(of: localItemURL),
+                  isDescendantOrSame(externalTargetURL, under: dir) else {
+                continue
+            }
+
+            let appsInFolder = appBundlesInsideFolderPortal(at: externalTargetURL)
+            guard !appsInFolder.isEmpty else {
+                continue
+            }
+
+            if appsInFolder.count == 1, let bundleURL = appsInFolder.first {
+                let (isAppStore, isIOS) = detectAppStoreAndIOSApp(at: bundleURL)
+                let app = AppItem(
+                    name: externalTargetURL.lastPathComponent,
+                    path: externalTargetURL,
+                    bundleURL: bundleURL,
+                    status: "已链接",
+                    isSystemApp: false,
+                    isRunning: false,
+                    isAppStoreApp: isAppStore,
+                    isIOSApp: isIOS,
+                    containerKind: .singleAppContainer,
+                    appCount: 1
+                )
+                candidates.append(makeCandidate(for: app, bundleURL: bundleURL, priority: 40))
+            } else {
+                let app = AppItem(
+                    name: externalTargetURL.lastPathComponent,
+                    path: externalTargetURL,
+                    status: "已链接",
+                    isSystemApp: false,
+                    isRunning: false,
+                    isFolder: true,
+                    containerKind: .appSuiteFolder,
+                    appCount: appsInFolder.count
+                )
+                candidates.append(makeCandidate(for: app, bundleURL: externalTargetURL, priority: 40))
             }
         }
         let sortedApps = sortApps(deduplicate(candidates))
