@@ -24,7 +24,7 @@
 /* Begin PBXFileReference section */
 		2A2693812F667A0E0044F015 /* icon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = icon.icon; sourceTree = "<group>"; };
 		2A2693852F667C1B0044F015 /* AppPorts.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AppPorts.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		B10000012F00100000000001 /* AppPortsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = AppPortsTests.xctest; path = /Users/wangheng/Documents/AppPorts/build/Debug/AppPorts.app/Contents/PlugIns/AppPortsTests.xctest; sourceTree = "<absolute>"; };
+		2A2693862F667CCC0044F015 /* AppPortsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AppPortsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -65,6 +65,7 @@
 				B10000012F00100000000002 /* AppPortsTests */,
 				2A2693812F667A0E0044F015 /* icon.icon */,
 				2A2693852F667C1B0044F015 /* AppPorts.app */,
+				2A2693862F667CCC0044F015 /* AppPortsTests.xctest */,
 			);
 			sourceTree = "<group>";
 		};
@@ -113,7 +114,7 @@
 			packageProductDependencies = (
 			);
 			productName = AppPortsTests;
-			productReference = B10000012F00100000000001 /* AppPortsTests.xctest */;
+			productReference = 2A2693862F667CCC0044F015 /* AppPortsTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
@@ -336,19 +337,19 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_IDENTITY = "Apple Development";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = MQ7XG7WM3F;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "AppPorts 需要控制 Finder 来迁移 App Store 应用。";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 Shimoko.com/wzh4869. All rights reserved.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025-2026 Shimoko.com/wzh4869 and contributors. All rights reserved.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -375,19 +376,19 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_IDENTITY = "Apple Development";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = MQ7XG7WM3F;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "AppPorts 需要控制 Finder 来迁移 App Store 应用。";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 Shimoko.com/wzh4869. All rights reserved.";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025-2026 Shimoko.com/wzh4869 and contributors. All rights reserved.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
