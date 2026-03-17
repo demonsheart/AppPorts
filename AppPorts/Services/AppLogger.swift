@@ -41,7 +41,8 @@ import AppKit
 /// ```
 ///
 /// - Note: 所有日志同时输出到控制台和文件（如果启用）
-final class AppLogger: @unchecked Sendable {
+/// - Important: 线程安全通过 DispatchQueue 实现，可从任何线程安全调用
+final class AppLogger: Sendable {
     struct OperationSummaryRecord: Codable, Sendable {
         let operationID: String
         let category: String
@@ -55,38 +56,40 @@ final class AppLogger: @unchecked Sendable {
     }
 
     /// 单例实例
-    nonisolated(unsafe) static let shared = AppLogger()
+    static let shared = AppLogger()
     
     // MARK: - 私有属性
     
     /// 日期格式化器（格式：yyyy-MM-dd HH:mm:ss）
-    nonisolated(unsafe) private let dateFormatter: DateFormatter
+    /// - Note: 使用 DispatchQueue 保护访问
+    private let dateFormatter: DateFormatter
     
     /// 文件管理器
-    nonisolated(unsafe) private let fileManager = FileManager.default
+    private let fileManager = FileManager.default
 
     /// 串行日志队列，避免多线程写文件交错
-    nonisolated(unsafe) private let writeQueue = DispatchQueue(label: "com.shimoko.AppPorts.logger")
+    private let writeQueue = DispatchQueue(label: "com.shimoko.AppPorts.logger")
 
     /// 当前启动会话 ID，便于用户粘贴日志后快速关联一次运行
-    nonisolated private let sessionID: String
+    private let sessionID: String
 
     /// 当前进程 ID
-    nonisolated private let processID: Int32 = ProcessInfo.processInfo.processIdentifier
+    private let processID: Int32 = ProcessInfo.processInfo.processIdentifier
 
     /// 最近操作摘要，导出诊断包时直接复用
-    nonisolated(unsafe) private var recentOperationSummaries: [OperationSummaryRecord] = []
+    /// - Note: 通过 writeQueue 保护访问
+    private var recentOperationSummaries: [OperationSummaryRecord] = []
     
     /// UserDefaults 存储键
-    nonisolated private let logPathKey = "LogFilePath"         // 日志文件路径
-    nonisolated private let maxLogSizeKey = "MaxLogSizeBytes"  // 最大日志大小
-    nonisolated private let logEnabledKey = "LogEnabled"       // 日志启用状态
+    private let logPathKey = "LogFilePath"         // 日志文件路径
+    private let maxLogSizeKey = "MaxLogSizeBytes"  // 最大日志大小
+    private let logEnabledKey = "LogEnabled"       // 日志启用状态
     
     /// 默认最大日志大小: 2MB
-    nonisolated private let defaultMaxSize: Int64 = 2 * 1024 * 1024
+    private let defaultMaxSize: Int64 = 2 * 1024 * 1024
 
     /// 最多保留最近 100 条操作摘要，避免无限增长
-    nonisolated private let maxOperationSummaryCount = 100
+    private let maxOperationSummaryCount = 100
     
     // MARK: - 公共属性
     
@@ -97,7 +100,7 @@ final class AppLogger: @unchecked Sendable {
     /// - 不会写入日志文件（节省磁盘空间）
     ///
     /// - Note: 默认为启用状态
-    nonisolated var isLoggingEnabled: Bool {
+    var isLoggingEnabled: Bool {
         get {
             // 默认为开启 (true)
             UserDefaults.standard.object(forKey: logEnabledKey) == nil ? true : UserDefaults.standard.bool(forKey: logEnabledKey)
@@ -119,7 +122,7 @@ final class AppLogger: @unchecked Sendable {
     /// 2. 默认路径：`~/Library/Application Support/AppPorts/AppPorts_Log.txt`
     ///
     /// - Note: 如果目录不存在会自动创建
-    nonisolated var logFileURL: URL {
+    var logFileURL: URL {
         if let savedPath = UserDefaults.standard.string(forKey: logPathKey) {
             return URL(fileURLWithPath: savedPath)
         }
@@ -140,7 +143,7 @@ final class AppLogger: @unchecked Sendable {
     /// - 10 MB = 10,485,760 字节
     ///
     /// - Note: 默认为 2 MB
-    nonisolated var maxLogSize: Int64 {
+    var maxLogSize: Int64 {
         get {
             let saved = UserDefaults.standard.integer(forKey: maxLogSizeKey)
             return saved > 0 ? Int64(saved) : defaultMaxSize
@@ -155,13 +158,13 @@ final class AppLogger: @unchecked Sendable {
     /// 私有初始化（单例模式）
     ///
     /// 配置日期格式化器用于日志时间戳
-    nonisolated private init() {
+    private init() {
         dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         sessionID = String(UUID().uuidString.prefix(8))
     }
 
-    nonisolated func logLaunchSession() {
+    func logLaunchSession() {
         log("========== AppPorts 启动 ==========")
         logContext(
             "启动会话",
@@ -185,13 +188,13 @@ final class AppLogger: @unchecked Sendable {
         logSystemInfo()
     }
 
-    nonisolated func makeOperationID(prefix: String) -> String {
+    func makeOperationID(prefix: String) -> String {
         let compactPrefix = prefix.replacingOccurrences(of: " ", with: "-")
         return "\(compactPrefix)-\(String(UUID().uuidString.prefix(8)))"
     }
     
     /// 设置日志文件路径
-    nonisolated func setLogPath(_ url: URL) {
+    func setLogPath(_ url: URL) {
         UserDefaults.standard.set(url.path, forKey: logPathKey)
         logContext("日志路径已更改", details: [("path", url.path)])
     }
@@ -209,7 +212,7 @@ final class AppLogger: @unchecked Sendable {
     }
     
     /// 清空日志
-    nonisolated func clearLog() {
+    func clearLog() {
         try? fileManager.removeItem(at: logFileURL)
         log("日志已清空".localized)
     }
@@ -254,7 +257,7 @@ final class AppLogger: @unchecked Sendable {
         }
     }
 
-    nonisolated func log(_ message: String, level: String = "INFO") {
+    func log(_ message: String, level: String = "INFO") {
         let logLine = buildLogLine(message: message, level: level)
 
         writeQueue.sync {
@@ -267,7 +270,7 @@ final class AppLogger: @unchecked Sendable {
         }
     }
 
-    nonisolated func logContext(_ title: String, details: [(String, String?)], level: String = "INFO") {
+    func logContext(_ title: String, details: [(String, String?)], level: String = "INFO") {
         log(title, level: level)
 
         for (key, value) in details.sorted(by: { $0.0 < $1.0 }) {
@@ -276,12 +279,12 @@ final class AppLogger: @unchecked Sendable {
         }
     }
 
-    nonisolated func logPathState(_ label: String, url: URL, level: String = "TRACE") {
+    func logPathState(_ label: String, url: URL, level: String = "TRACE") {
         logContext("路径状态[\(label)]", details: pathStateDetails(for: url), level: level)
     }
     
     /// 日志轮转：当日志超过最大大小时，删除旧内容
-    nonisolated private func rotateLogIfNeeded() {
+    private func rotateLogIfNeeded() {
         let url = logFileURL
         guard let attributes = try? fileManager.attributesOfItem(atPath: url.path),
               let fileSize = attributes[.size] as? Int64,
@@ -305,7 +308,7 @@ final class AppLogger: @unchecked Sendable {
         }
     }
     
-    nonisolated func logError(
+    func logError(
         _ message: String,
         error: Error? = nil,
         errorCode: String? = nil,
@@ -329,7 +332,7 @@ final class AppLogger: @unchecked Sendable {
         }
     }
 
-    nonisolated func logOperationSummary(
+    func logOperationSummary(
         category: String,
         operationID: String,
         result: String,
@@ -375,7 +378,7 @@ final class AppLogger: @unchecked Sendable {
     }
 
     /// 获取日志大小的可读字符串
-    nonisolated func getLogSizeString() -> String {
+    func getLogSizeString() -> String {
         let url = logFileURL
         guard let attributes = try? fileManager.attributesOfItem(atPath: url.path),
               let fileSize = attributes[.size] as? Int64 else {
@@ -388,7 +391,7 @@ final class AppLogger: @unchecked Sendable {
     // MARK: - 系统诊断信息
     
     /// 记录应用启动时的系统信息
-    nonisolated func logSystemInfo() {
+    func logSystemInfo() {
         logContext(
             "========== 系统诊断信息 ==========".localized,
             details: [
@@ -403,7 +406,7 @@ final class AppLogger: @unchecked Sendable {
     }
     
     /// 记录外接硬盘信息
-    nonisolated func logExternalDriveInfo(at url: URL) {
+    func logExternalDriveInfo(at url: URL) {
         log("========== 外接硬盘信息 ==========".localized, level: "DISK")
         
         // 获取卷信息
@@ -422,7 +425,7 @@ final class AppLogger: @unchecked Sendable {
     }
     
     /// 记录迁移性能信息
-    nonisolated func logMigrationPerformance(appName: String, size: Int64, duration: TimeInterval, sourcePath: String, destPath: String) {
+    func logMigrationPerformance(appName: String, size: Int64, duration: TimeInterval, sourcePath: String, destPath: String) {
         let speed = duration > 0 ? Double(size) / duration / 1024 / 1024 : 0
         logContext(
             "========== 迁移性能报告 ==========".localized,
@@ -440,13 +443,13 @@ final class AppLogger: @unchecked Sendable {
     
     // MARK: - 获取系统信息的辅助方法
     
-    nonisolated private func getAppVersion() -> String {
+    private func getAppVersion() -> String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "未知".localized
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "未知".localized
         return "\(version) (\(build))"
     }
     
-    nonisolated private func getMacOSVersion() -> String {
+    private func getMacOSVersion() -> String {
         let version = ProcessInfo.processInfo.operatingSystemVersion
         let versionString = "\(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
         
@@ -465,7 +468,7 @@ final class AppLogger: @unchecked Sendable {
         return "\(macOSName) \(versionString)"
     }
     
-    nonisolated private func getDeviceModel() -> String {
+    private func getDeviceModel() -> String {
         var size = 0
         sysctlbyname("hw.model", nil, &size, nil, 0)
         var model = [CChar](repeating: 0, count: size)
@@ -477,7 +480,7 @@ final class AppLogger: @unchecked Sendable {
         return "\(friendlyName) (\(modelString))"
     }
     
-    nonisolated private func getMarketingModelName(_ identifier: String) -> String {
+    private func getMarketingModelName(_ identifier: String) -> String {
         // 常见 Mac 型号映射
         let models: [String: String] = [
             "Mac14,2": "MacBook Air (M2, 2022)",
@@ -514,7 +517,7 @@ final class AppLogger: @unchecked Sendable {
         return models[identifier] ?? "Mac".localized
     }
     
-    nonisolated private func getProcessorInfo() -> String {
+    private func getProcessorInfo() -> String {
         var size = 0
         sysctlbyname("machdep.cpu.brand_string", nil, &size, nil, 0)
         var brand = [CChar](repeating: 0, count: size)
@@ -531,14 +534,14 @@ final class AppLogger: @unchecked Sendable {
         return "\(brandString) (\(activeCount)/\(processorCount) cores)"
     }
     
-    nonisolated private func getMemoryInfo() -> String {
+    private func getMemoryInfo() -> String {
         let physicalMemory = ProcessInfo.processInfo.physicalMemory
         return formatBytes(Int64(physicalMemory))
     }
     
     // MARK: - 获取磁盘信息的辅助方法
     
-    nonisolated private func getVolumeInfo(at url: URL) -> [(String, String)] {
+    private func getVolumeInfo(at url: URL) -> [(String, String)] {
         var info: [(String, String)] = []
         
         do {
@@ -576,7 +579,7 @@ final class AppLogger: @unchecked Sendable {
         return info
     }
     
-    nonisolated private func getDiskInterfaceInfo(at url: URL) -> [(String, String)] {
+    private func getDiskInterfaceInfo(at url: URL) -> [(String, String)] {
         var info: [(String, String)] = []
         
         // 1. 使用 diskutil info -plist 获取基础信息
@@ -643,7 +646,7 @@ final class AppLogger: @unchecked Sendable {
         return info
     }
     
-    nonisolated private func getConnectionSpeedInfo(volumeName: String, diskIdentifier: String, physicalStore: String) -> [(String, String)] {
+    private func getConnectionSpeedInfo(volumeName: String, diskIdentifier: String, physicalStore: String) -> [(String, String)] {
         var info: [(String, String)] = []
         let searchTerms = [volumeName, diskIdentifier, physicalStore].filter { !$0.isEmpty }
         
@@ -686,7 +689,7 @@ final class AppLogger: @unchecked Sendable {
         return info
     }
     
-    nonisolated private func runSystemProfiler(dataType: String) -> [String: Any]? {
+    private func runSystemProfiler(dataType: String) -> [String: Any]? {
         let task = Process()
         task.launchPath = "/usr/sbin/system_profiler"
         task.arguments = [dataType, "-json"]
@@ -706,7 +709,7 @@ final class AppLogger: @unchecked Sendable {
     }
     
     // 通用递归搜索
-    nonisolated private func searchDeviceRecursive(in devices: [[String: Any]], searchTerms: [String], type: String) -> [(String, String)]? {
+    private func searchDeviceRecursive(in devices: [[String: Any]], searchTerms: [String], type: String) -> [(String, String)]? {
         for device in devices {
             // Check current device
             let deviceName = (device["_name"] as? String ?? "").lowercased()
@@ -769,15 +772,15 @@ final class AppLogger: @unchecked Sendable {
         return nil
     }
     
-    nonisolated private func formatBytes(_ bytes: Int64) -> String {
+    private func formatBytes(_ bytes: Int64) -> String {
         LocalizedByteCountFormatter.string(fromByteCount: bytes)
     }
 
-    nonisolated private func timestampString(for date: Date) -> String {
+    private func timestampString(for date: Date) -> String {
         dateFormatter.string(from: date)
     }
 
-    nonisolated private func logLevel(forOperationResult result: String) -> String {
+    private func logLevel(forOperationResult result: String) -> String {
         switch result {
         case "success":
             return "INFO"
@@ -788,11 +791,11 @@ final class AppLogger: @unchecked Sendable {
         }
     }
 
-    nonisolated private func selectedAppLanguageCode() -> String {
+    private func selectedAppLanguageCode() -> String {
         UserDefaults.standard.string(forKey: "selectedLanguage") ?? "system"
     }
 
-    nonisolated private func selectedAppLocaleIdentifier() -> String {
+    private func selectedAppLocaleIdentifier() -> String {
         let selectedLanguage = selectedAppLanguageCode()
         if selectedLanguage == "system" {
             return Locale.current.identifier
@@ -800,13 +803,13 @@ final class AppLogger: @unchecked Sendable {
         return Locale(identifier: selectedLanguage).identifier
     }
 
-    nonisolated private func defaultDiagnosticArchiveName() -> String {
+    private func defaultDiagnosticArchiveName() -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd-HHmmss"
         return "AppPorts-Diagnostic-\(formatter.string(from: Date())).zip"
     }
 
-    nonisolated private func createDiagnosticArchive() throws -> URL {
+    private func createDiagnosticArchive() throws -> URL {
         let tempRootURL = fileManager.temporaryDirectory.appendingPathComponent("AppPorts-Diagnostic-\(UUID().uuidString)", isDirectory: true)
         try fileManager.createDirectory(at: tempRootURL, withIntermediateDirectories: true)
 
@@ -831,7 +834,7 @@ final class AppLogger: @unchecked Sendable {
         return archiveURL
     }
 
-    nonisolated func buildDiagnosticPackage(in rootURL: URL) throws -> URL {
+    func buildDiagnosticPackage(in rootURL: URL) throws -> URL {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd-HHmmss"
         let packageURL = rootURL.appendingPathComponent("AppPorts-Diagnostic-\(formatter.string(from: Date()))", isDirectory: true)
@@ -882,7 +885,7 @@ final class AppLogger: @unchecked Sendable {
         return packageURL
     }
 
-    nonisolated func redactedDiagnosticText(from rawText: String) -> String {
+    func redactedDiagnosticText(from rawText: String) -> String {
         var sanitized = rawText
         let homeDirectory = NSHomeDirectory()
 
@@ -904,22 +907,22 @@ final class AppLogger: @unchecked Sendable {
         return sanitized
     }
 
-    nonisolated func recentOperationSummariesSnapshot() -> [OperationSummaryRecord] {
+    func recentOperationSummariesSnapshot() -> [OperationSummaryRecord] {
         writeQueue.sync { recentOperationSummaries }
     }
 
-    nonisolated func resetDiagnosticStateForTesting() {
+    func resetDiagnosticStateForTesting() {
         writeQueue.sync {
             recentOperationSummaries.removeAll()
         }
     }
 
-    nonisolated private func buildLogLine(message: String, level: String) -> String {
+    private func buildLogLine(message: String, level: String) -> String {
         let timestamp = dateFormatter.string(from: Date())
         return "[\(timestamp)] [\(level)] [session:\(sessionID)] [pid:\(processID)] \(message)\n"
     }
 
-    nonisolated private func writeLogLine(_ logLine: String) {
+    private func writeLogLine(_ logLine: String) {
         guard let data = logLine.data(using: .utf8) else { return }
 
         let url = logFileURL
@@ -935,7 +938,7 @@ final class AppLogger: @unchecked Sendable {
         }
     }
 
-    nonisolated private func pathStateDetails(for url: URL) -> [(String, String?)] {
+    private func pathStateDetails(for url: URL) -> [(String, String?)] {
         let standardizedURL = url.standardizedFileURL
         let exists = fileManager.fileExists(atPath: standardizedURL.path)
         var details: [(String, String?)] = [
@@ -1005,14 +1008,14 @@ final class AppLogger: @unchecked Sendable {
         return details
     }
 
-    nonisolated private func describeFileKind(_ values: URLResourceValues?) -> String {
+    private func describeFileKind(_ values: URLResourceValues?) -> String {
         if values?.isSymbolicLink == true { return "symlink" }
         if values?.isDirectory == true { return "directory" }
         if values?.isRegularFile == true { return "file" }
         return "unknown"
     }
 
-    nonisolated private func resolveSymlinkDestination(at url: URL) -> URL? {
+    private func resolveSymlinkDestination(at url: URL) -> URL? {
         guard let values = try? url.resourceValues(forKeys: [.isSymbolicLinkKey]),
               values.isSymbolicLink == true,
               let rawPath = try? fileManager.destinationOfSymbolicLink(atPath: url.path) else {
@@ -1022,7 +1025,7 @@ final class AppLogger: @unchecked Sendable {
         return URL(fileURLWithPath: rawPath, relativeTo: url.deletingLastPathComponent()).standardizedFileURL
     }
 
-    nonisolated private func errorDetails(for error: Error, prefix: String = "error") -> [(String, String?)] {
+    private func errorDetails(for error: Error, prefix: String = "error") -> [(String, String?)] {
         let nsError = error as NSError
         var details: [(String, String?)] = [
             ("\(prefix)_description", error.localizedDescription),
@@ -1072,14 +1075,14 @@ final class AppLogger: @unchecked Sendable {
         return details
     }
 
-    nonisolated private func writeJSON<T: Encodable>(_ value: T, to url: URL) throws {
+    private func writeJSON<T: Encodable>(_ value: T, to url: URL) throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let data = try encoder.encode(value)
         try data.write(to: url, options: .atomic)
     }
 
-    nonisolated private func buildDiagnosticSummaryText(
+    private func buildDiagnosticSummaryText(
         metadata: [String: String],
         lastFailure: OperationSummaryRecord?,
         operationCount: Int

@@ -293,7 +293,15 @@ actor FileCopier {
                 guard readSize > 0 else { continue }
                 
                 // 写入属性值到目标文件
-                setxattr(destPath, name, valueBuffer, readSize, 0, 0)
+                let setResult = setxattr(destPath, name, valueBuffer, readSize, 0, 0)
+                if setResult != 0 {
+                    // 记录警告但不抛出错误，扩展属性复制失败不应阻止文件复制
+                    let errnoDescription = String(cString: strerror(errno))
+                    AppLogger.shared.log(
+                        "Warning: Failed to copy extended attribute '\(name)' from '\(sourcePath)' to '\(destPath)': \(errnoDescription)",
+                        level: "WARN"
+                    )
+                }
             }
         }
     }
